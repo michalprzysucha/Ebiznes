@@ -1,12 +1,11 @@
 package controllers
 
 import javax.inject._
-import play.api._
 import play.api.mvc._
 import scala.collection.mutable.ListBuffer
 import play.api.libs.json._
-import models.{Product}
-import scala.concurrent.{ExecutionContext, Future}
+import models.Product
+//import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ProductController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
@@ -14,7 +13,7 @@ class ProductController @Inject()(val controllerComponents: ControllerComponents
   productsList += Product(1, "monitor", "monitor 4k", 1500.50)
   productsList += Product(2, "klawiatura", "gamingowa", 150.21)
 
-  implicit val productsListJson = Json.format[Product]
+  implicit val productsListJson: OFormat[Product] = Json.format[Product]
 
   def getAllProducts(): Action[AnyContent] = Action {
     if(productsList.isEmpty){
@@ -32,37 +31,21 @@ class ProductController @Inject()(val controllerComponents: ControllerComponents
     }
   }
 
-  def addProduct = Action.async(parse.json) { implicit request: Request[JsValue] =>
-    request.body.validate[Product].map { product =>
-      productId => Created(Json.toJson(productId))
-        productsList += product
+  def addProduct(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
+    val body = request.body
+    val jsonBodyOption: Option[JsValue] = body.asJson
 
-    }.getOrElse(Future.successful(BadRequest("Invalid Product")))
+    jsonBodyOption match {
+      case Some(jsonBody) => {
+        val nextId = productsList.map(_.id).max + 1
+        val name = (jsonBody \ "name").as[String]
+        val description = (jsonBody \ "description").as[String]
+        val price = (jsonBody \ "price").as[Double]
+
+        productsList += Product(nextId, name, description, price)
+        Ok("Produkt dodany pomyślnie.")
+      }
+      case None => BadRequest("Oczekiwano ciała z danymi JSON.")
+    }
   }
-
-//  def createProduct = Action.async(parse.json) { implicit request =>
-////    val content = request.body
-////    val jsonObject = content.asJson
-////    val product: Option[Product] =
-////      jsonObject.flatMap(
-////        Json.fromJson[Product](_).asOpt
-////      )
-////
-////    product match {
-////      case Some(newProduct) =>
-////        val nextId = productsList.map(_.id).max + 1
-////        val toBeAdded = TodoListItem(nextId, newProduct.name, newProduct.description, newProduct.price)
-////        productsList += toBeAdded
-////        Created(Json.toJson(toBeAdded))
-////      case None =>
-////        BadRequest
-//
-//    request.body.validate[Product].fold(
-//      error => Future.successful(BadRequest("Invalid JSON")),
-//      product => {
-//        productsList += product
-//        Created(Json.toJson(product))
-//      }
-//    )
-//  }
 }
