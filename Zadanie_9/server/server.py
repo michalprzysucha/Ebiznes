@@ -1,5 +1,3 @@
-# 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
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import openai
